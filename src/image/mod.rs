@@ -34,12 +34,15 @@ pub fn image(
     queue: Arc<Queue>,
     memory_allocator: Arc<dyn MemoryAllocator>,
 ) -> anyhow::Result<()> {
+    let width = 3840;
+    let height = 2160;
+
     let image = Image::new(
         memory_allocator.clone(),
         ImageCreateInfo {
             image_type: ImageType::Dim2d,
             format: Format::R8G8B8A8_UNORM,
-            extent: [1024, 1024, 1],
+            extent: [width, height, 1],
             usage: ImageUsage::STORAGE | ImageUsage::TRANSFER_SRC,
             ..Default::default()
         },
@@ -92,7 +95,7 @@ pub fn image(
                 | MemoryTypeFilter::HOST_RANDOM_ACCESS,
             ..Default::default()
         },
-        (0..1024 * 1024 * 4).map(|_| 0u8),
+        (0..width * height * 4).map(|_| 0u8),
     )?;
 
     let command_buffer_allocator = StandardCommandBufferAllocator::new(
@@ -114,7 +117,7 @@ pub fn image(
             0,
             set,
         )?
-        .dispatch([1024 / 8, 1024 / 8, 1])?
+        .dispatch([width / 8, height / 8, 1])?
         .copy_image_to_buffer(CopyImageToBufferInfo::image_buffer(
             image.clone(),
             buf.clone(),
@@ -129,7 +132,7 @@ pub fn image(
     future.wait(None)?;
 
     let buffer_content = buf.read()?;
-    let image = ImageBuffer::<Rgba<u8>, _>::from_raw(1024, 1024, &buffer_content[..]).unwrap();
+    let image = ImageBuffer::<Rgba<u8>, _>::from_raw(width, height, &buffer_content[..]).unwrap();
 
     image.save("src/image/image.png")?;
 
