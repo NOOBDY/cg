@@ -11,7 +11,7 @@
 
 use std::{sync::Arc, time::Instant};
 
-use cgmath::{Matrix3, Matrix4, Point3, Rad, SquareMatrix, Transform, Vector3};
+use cgmath::{Matrix3, Matrix4, Point3, Rad, Vector3};
 use egui::{epaint::Shadow, style::Margin, vec2, Align, Align2, Color32, Frame, Rounding, Window};
 use egui_winit_vulkano::{egui, Gui, GuiConfig};
 use vulkano::buffer::view;
@@ -100,8 +100,6 @@ pub fn main() {
         GuiConfig::default(),
     );
 
-    let mut translate = Vector3::new(0.0, 0.0, 0.0);
-    let mut rotation: f32 = 0.0;
     // Create gui state (pass anything your state requires)
     event_loop.run(move |event, _, control_flow| {
         let renderer = windows.get_primary_renderer_mut().unwrap();
@@ -141,35 +139,6 @@ pub fn main() {
                                 .inner_margin(Margin::same(10.0)),
                         )
                         .show(&ctx, |ui| {
-                            if ui.input(|i| i.key_pressed(egui::Key::Q)) {
-                                rotation += -0.1;
-                            }
-
-                            if ui.input(|i| i.key_pressed(egui::Key::E)) {
-                                rotation += 0.1;
-                            }
-
-                            if ui.input(|i| i.key_pressed(egui::Key::A)) {
-                                translate.x -= 1.0;
-                            }
-
-                            if ui.input(|i| i.key_pressed(egui::Key::D)) {
-                                translate.x += 1.0;
-                            }
-
-                            if ui.input(|i| i.key_pressed(egui::Key::S)) {
-                                translate.y -= 1.0;
-                            }
-
-                            if ui.input(|i| i.key_pressed(egui::Key::W)) {
-                                translate.y += 1.0;
-                            }
-
-                            if ui.input(|i| i.key_pressed(egui::Key::R)) {
-                                translate = Vector3::new(0.0, 0.0, 0.0);
-                                rotation = 0.0;
-                            }
-
                             ui.colored_label(Color32::BLACK, "Content :)");
                         });
                 });
@@ -183,8 +152,6 @@ pub fn main() {
                             renderer.swapchain_image_view(),
                             &mut gui,
                             context.memory_allocator(),
-                            Matrix4::from_translation(translate)
-                                * Matrix4::from_angle_y(Rad(rotation)),
                         );
 
                         // Present swapchain
@@ -212,13 +179,9 @@ struct SimpleGuiPipeline {
     subpass: Subpass,
     vertex_buffer: Subbuffer<[MyVertex]>,
     index_buffer: Subbuffer<[u32]>,
-    vertex_buffer2: Subbuffer<[MyVertex]>,
-    index_buffer2: Subbuffer<[u32]>,
     uniform_buffer: Subbuffer<vs::Data>,
-    uniform_buffer2: Subbuffer<vs::Data>,
     command_buffer_allocator: StandardCommandBufferAllocator,
     descriptor_set_allocator: StandardDescriptorSetAllocator,
-    descriptor_set_allocator2: StandardDescriptorSetAllocator,
 }
 
 impl SimpleGuiPipeline {
@@ -315,110 +278,7 @@ impl SimpleGuiPipeline {
         )
         .unwrap();
 
-        let vertex_buffer2 = Buffer::from_iter(
-            allocator.clone(),
-            BufferCreateInfo {
-                usage: BufferUsage::VERTEX_BUFFER,
-                ..Default::default()
-            },
-            AllocationCreateInfo {
-                memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
-                    | MemoryTypeFilter::HOST_RANDOM_ACCESS,
-                ..Default::default()
-            },
-            [
-                MyVertex {
-                    position: [100.0, 0.1, 0.0],
-                    color: [1.0, 0.0, 0.0, 1.0],
-                },
-                MyVertex {
-                    position: [100.0, -0.1, 0.0],
-                    color: [1.0, 0.0, 0.0, 1.0],
-                },
-                MyVertex {
-                    position: [-100.0, -0.1, 0.0],
-                    color: [1.0, 0.0, 0.0, 1.0],
-                },
-                MyVertex {
-                    position: [-100.0, 0.1, 0.0],
-                    color: [1.0, 0.0, 0.0, 1.0],
-                }, // x
-                MyVertex {
-                    position: [0.1, 100.0, 0.0],
-                    color: [0.0, 1.0, 0.0, 1.0],
-                },
-                MyVertex {
-                    position: [-0.1, 100.0, 0.0],
-                    color: [0.0, 1.0, 0.0, 1.0],
-                },
-                MyVertex {
-                    position: [-0.1, -100.0, 0.0],
-                    color: [0.0, 1.0, 0.0, 1.0],
-                },
-                MyVertex {
-                    position: [0.1, -100.0, 0.0],
-                    color: [0.0, 1.0, 0.0, 1.0],
-                }, // y
-                MyVertex {
-                    position: [0.0, 0.1, 100.0],
-                    color: [0.0, 0.0, 1.0, 1.0],
-                },
-                MyVertex {
-                    position: [0.0, -0.1, 100.0],
-                    color: [0.0, 0.0, 1.0, 1.0],
-                },
-                MyVertex {
-                    position: [0.0, -0.1, -100.0],
-                    color: [0.0, 0.0, 1.0, 1.0],
-                },
-                MyVertex {
-                    position: [0.0, 0.1, -100.0],
-                    color: [0.0, 0.0, 1.0, 1.0],
-                }, // z
-            ],
-        )
-        .unwrap();
-
-        let index_buffer2 = Buffer::from_iter(
-            allocator.clone(),
-            BufferCreateInfo {
-                usage: BufferUsage::INDEX_BUFFER,
-                ..Default::default()
-            },
-            AllocationCreateInfo {
-                memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
-                    | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
-                ..Default::default()
-            },
-            [
-                0, 3, 1, //
-                3, 1, 2, //
-                4, 7, 5, //
-                7, 5, 6, //
-                8, 11, 9, //
-                11, 9, 10, //
-            ],
-        )
-        .unwrap();
-
-        let uniform_buffer2 = Buffer::new_sized(
-            allocator.clone(),
-            BufferCreateInfo {
-                usage: BufferUsage::UNIFORM_BUFFER,
-                ..Default::default()
-            },
-            AllocationCreateInfo {
-                memory_type_filter: MemoryTypeFilter::PREFER_DEVICE
-                    | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
-                ..Default::default()
-            },
-        )
-        .unwrap();
-
         let descriptor_set_allocator =
-            StandardDescriptorSetAllocator::new(queue.device().clone(), Default::default());
-
-        let descriptor_set_allocator2 =
             StandardDescriptorSetAllocator::new(queue.device().clone(), Default::default());
 
         // Create an allocator for command-buffer data
@@ -439,13 +299,9 @@ impl SimpleGuiPipeline {
             subpass,
             vertex_buffer,
             index_buffer,
-            vertex_buffer2,
-            index_buffer2,
             uniform_buffer,
-            uniform_buffer2,
             command_buffer_allocator,
             descriptor_set_allocator,
-            descriptor_set_allocator2,
         }
     }
 
@@ -554,7 +410,6 @@ impl SimpleGuiPipeline {
         image: Arc<ImageView>,
         gui: &mut Gui,
         allocator: &Arc<StandardMemoryAllocator>,
-        transform: Matrix4<f32>,
     ) -> Box<dyn GpuFuture> {
         let mut builder = AutoCommandBufferBuilder::primary(
             &self.command_buffer_allocator,
@@ -588,9 +443,10 @@ impl SimpleGuiPipeline {
         )
         .unwrap();
         *self.uniform_buffer.write().unwrap() = {
-            // let elapsed = self.start_time.elapsed();
-            // let rotation =
-            //     elapsed.as_secs() as f64 + elapsed.subsec_nanos() as f64 / 1_000_000_000.0;
+            let elapsed = self.start_time.elapsed();
+            let rotation =
+                elapsed.as_secs() as f64 + elapsed.subsec_nanos() as f64 / 1_000_000_000.0;
+            let rotation = Matrix3::from_angle_y(Rad(rotation as f32));
 
             // note: this teapot was meant for OpenGL where the origin is at the lower left
             //       instead the origin is at the upper left in Vulkan, so we reverse the Y axis
@@ -604,41 +460,14 @@ impl SimpleGuiPipeline {
             );
             let scale = Matrix4::from_scale(0.01);
 
-            vs::Data {
-                world: transform.into(),
+            let uniform_data = vs::Data {
+                world: Matrix4::from(rotation).into(),
                 view: (view * scale).into(),
                 proj: proj.into(),
-            }
+            };
 
             // let subbuffer = self.uniform_buffer.allocate_sized().unwrap();
-
-            // subbuffer
-        };
-
-        *self.uniform_buffer2.write().unwrap() = {
-            // let elapsed = self.start_time.elapsed();
-            // let rotation =
-            //     elapsed.as_secs() as f64 + elapsed.subsec_nanos() as f64 / 1_000_000_000.0;
-
-            // note: this teapot was meant for OpenGL where the origin is at the lower left
-            //       instead the origin is at the upper left in Vulkan, so we reverse the Y axis
-            let aspect_ratio = extent[0] as f32 / extent[1] as f32;
-            let proj =
-                cgmath::perspective(Rad(std::f32::consts::FRAC_PI_2), aspect_ratio, 0.05, 10.0);
-            let view = Matrix4::look_at_rh(
-                Point3::new(0.1, 0.1, 0.1),
-                Point3::new(0.0, 0.0, 0.0),
-                Vector3::new(0.0, -1.0, 0.0),
-            );
-            let scale = Matrix4::from_scale(0.01);
-
-            vs::Data {
-                world: Matrix4::identity().into(),
-                view: (view * scale).into(),
-                proj: proj.into(),
-            }
-
-            // let subbuffer = self.uniform_buffer.allocate_sized().unwrap();
+            uniform_data
 
             // subbuffer
         };
@@ -648,14 +477,6 @@ impl SimpleGuiPipeline {
             &self.descriptor_set_allocator,
             layout.clone(),
             [WriteDescriptorSet::buffer(0, self.uniform_buffer.clone())],
-            [],
-        )
-        .unwrap();
-
-        let set2 = PersistentDescriptorSet::new(
-            &self.descriptor_set_allocator2,
-            layout.clone(),
-            [WriteDescriptorSet::buffer(0, self.uniform_buffer2.clone())],
             [],
         )
         .unwrap();
@@ -711,19 +532,6 @@ impl SimpleGuiPipeline {
             .bind_index_buffer(self.index_buffer.clone())
             .unwrap()
             .draw_indexed(self.index_buffer.len() as u32, 1, 0, 0, 0)
-            .unwrap()
-            .bind_descriptor_sets(
-                PipelineBindPoint::Graphics,
-                self.pipeline.layout().clone(),
-                0,
-                set2,
-            )
-            .unwrap()
-            .bind_vertex_buffers(0, self.vertex_buffer2.clone())
-            .unwrap()
-            .bind_index_buffer(self.index_buffer2.clone())
-            .unwrap()
-            .draw_indexed(self.index_buffer2.len() as u32, 1, 0, 0, 0)
             .unwrap();
         let cb = secondary_builder.build().unwrap();
         builder.execute_commands(cb).unwrap();
